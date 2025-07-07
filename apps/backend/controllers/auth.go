@@ -145,6 +145,24 @@ func (ac *AuthController) Me(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"user": user})
 }
 
+// GetMenuAccess returns accessible menu items for current user
+func (ac *AuthController) GetMenuAccess(c *gin.Context) {
+	userInterface, exists := c.Get("user")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	user := userInterface.(models.User)
+	menuAccess := utils.GetUserMenuAccess(&user)
+	featureAccess := utils.GetUserFeatureAccess(&user)
+
+	c.JSON(http.StatusOK, gin.H{
+		"menus":    menuAccess,
+		"features": featureAccess,
+	})
+}
+
 // Logout revokes refresh tokens
 func (ac *AuthController) Logout(c *gin.Context) {
 	// Get refresh token from request body

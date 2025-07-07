@@ -57,6 +57,8 @@ monorepo/
 - **Multi-Role Support** - Users can have multiple roles
 - **Permission System** - Resource-action based permissions
 - **Auto Token Refresh** - Frontend automatically refreshes expired tokens
+- **Menu Access Control** - Role-based menu visibility and access
+- **Feature Flags** - Permission-based feature access control
 
 ### Development Tools
 - **Turborepo** - Monorepo build system
@@ -161,6 +163,7 @@ cd apps/web && npm run dev
 
 ### Protected Endpoints (Auth Required)
 - `GET /api/v1/auth/me` - Current user info
+- `GET /api/v1/auth/menu-access` - Get accessible menus and features
 - `POST /api/v1/auth/logout` - Logout (revoke refresh token)
 - `POST /api/v1/auth/logout-all` - Logout from all devices
 - `POST /api/v1/auth/refresh` - Refresh access token
@@ -338,6 +341,10 @@ Current project uses Turbo v1.13.4 with `pipeline` configuration.
 const response = await authService.login({ username, password })
 // { access_token, refresh_token, expires_at, user }
 
+// Get user's accessible menus
+const { menus, features } = await authService.getMenuAccess()
+// Returns filtered menus based on user's role permissions
+
 // API calls automatically handle token refresh
 const user = await authService.getCurrentUser()
 // If access token expired, it's automatically refreshed
@@ -348,6 +355,53 @@ await authService.logout()
 // Logout from all devices
 await authService.logoutAll()
 ```
+
+## Role-Based Menu Access System
+
+### Predefined Roles & Menu Access
+
+| **Role** | **Description** | **Menu Access** | **Features** |
+|----------|-----------------|-----------------|--------------|
+| **admin** | Full system access | All menus | All features |
+| **manager** | Business analytics | Dashboard, Analytics, Reports, Billing | Export, Import |
+| **editor** | Content management | Dashboard, User Management, Support | Export |
+| **viewer** | Read-only access | Dashboard, Analytics, Reports | - |
+| **support** | User assistance | Dashboard, Support, User Management | Export |
+| **user** | Basic access | Dashboard only | - |
+
+### Menu Structure
+```typescript
+- Dashboard (menu.dashboard) - Basic home page
+- Analytics (menu.analytics) - Business analytics
+- Reports (menu.reports) - Data reports
+- Administration (menu.admin) - Admin panel
+  ├── User Management (menu.users) - User CRUD
+  ├── Role Management (menu.roles) - Role CRUD
+  └── Audit Logs (menu.audit) - System logs
+- Billing (menu.billing) - Payment management
+- Support (menu.support) - Customer support
+- Settings (menu.settings) - System settings
+```
+
+### Features & Permissions
+```typescript
+// Feature permissions
+feature.export - Data export capability
+feature.import - Data import capability  
+feature.backup - System backup access
+feature.maintenance - Maintenance mode access
+
+// Menu permissions
+menu.dashboard - Dashboard access
+menu.analytics - Analytics page access
+menu.admin - Admin panel access
+// ... etc
+```
+
+### Frontend Components
+- **Sidebar** - Dynamically renders menus based on permissions
+- **RolePermissionManager** - Admin interface for role management
+- **MenuAccess** - Utility for checking menu permissions
 
 ## License
 

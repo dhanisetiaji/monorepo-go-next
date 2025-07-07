@@ -105,6 +105,12 @@ class AuthService {
     return data.user
   }
 
+  async getMenuAccess(): Promise<{ menus: any[]; features: any }> {
+    const response = await this.authenticatedRequest('/api/v1/auth/menu-access')
+    const data = await response.json()
+    return data
+  }
+
   async logout(): Promise<void> {
     try {
       // Send refresh token to logout endpoint

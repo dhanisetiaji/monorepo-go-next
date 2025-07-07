@@ -82,6 +82,7 @@ func main() {
 	{
 		// Auth routes
 		protected.GET("/auth/me", authController.Me)
+		protected.GET("/auth/menu-access", authController.GetMenuAccess)
 		protected.POST("/auth/logout", authController.Logout)
 		protected.POST("/auth/logout-all", authController.LogoutAll)
 
