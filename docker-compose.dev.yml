@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  postgres-dev:
+    image: postgres:15-alpine
+    container_name: monorepo-postgres-dev
+    environment:
+      POSTGRES_DB: monorepo_db
+      POSTGRES_USER: monorepo_user
+      POSTGRES_PASSWORD: monorepo_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+    networks:
+      - monorepo-network
+
+volumes:
+  postgres_dev_data:
+
+networks:
+  monorepo-network:
+    driver: bridge

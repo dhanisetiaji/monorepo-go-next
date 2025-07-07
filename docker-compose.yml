@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: monorepo-postgres
+    environment:
+      POSTGRES_DB: monorepo_db
+      POSTGRES_USER: monorepo_user
+      POSTGRES_PASSWORD: monorepo_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./apps/backend/migrations:/docker-entrypoint-initdb.d/
+    networks:
+      - monorepo-network
+
+  backend:
+    build:
+      context: ./apps/backend
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - GIN_MODE=release
+      - PORT=8080
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=monorepo_user
+      - DB_PASSWORD=monorepo_password
+      - DB_NAME=monorepo_db
+      - JWT_SECRET=your-super-secret-jwt-key-change-in-production
+    depends_on:
+      - postgres
+    networks:
+      - monorepo-network
+
+  frontend:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8080
+    depends_on:
+      - backend
+    networks:
+      - monorepo-network
+
+volumes:
+  postgres_data:
+
+networks:
+  monorepo-network:
+    driver: bridge
