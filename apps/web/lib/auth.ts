@@ -30,7 +30,9 @@ interface Permission {
 }
 
 interface AuthResponse {
-  token: string
+  access_token: string
+  refresh_token: string
+  expires_at: number
   user: User
 }
 
@@ -48,12 +50,14 @@ interface RegisterRequest {
 }
 
 class AuthService {
-  private token: string | null = null
+  private accessToken: string | null = null
+  private refreshToken: string | null = null
 
   constructor() {
-    // Get token from localStorage on client side
+    // Get tokens from localStorage on client side
     if (typeof window !== 'undefined') {
-      this.token = localStorage.getItem('auth_token')
+      this.accessToken = localStorage.getItem('access_token')
+      this.refreshToken = localStorage.getItem('refresh_token')
     }
   }
 
@@ -72,7 +76,7 @@ class AuthService {
     }
 
     const data: AuthResponse = await response.json()
-    this.setToken(data.token)
+    this.setTokens(data.access_token, data.refresh_token)
     return data
   }
 
@@ -91,7 +95,7 @@ class AuthService {
     }
 
     const data: AuthResponse = await response.json()
-    this.setToken(data.token)
+    this.setTokens(data.access_token, data.refresh_token)
     return data
   }
 
@@ -103,13 +107,62 @@ class AuthService {
 
   async logout(): Promise<void> {
     try {
-      await this.authenticatedRequest('/api/v1/auth/logout', {
-        method: 'POST',
-      })
+      // Send refresh token to logout endpoint
+      if (this.refreshToken) {
+        await fetch(`${API_BASE_URL}/api/v1/auth/logout`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${this.accessToken}`,
+          },
+          body: JSON.stringify({ refresh_token: this.refreshToken }),
+        })
+      }
     } catch (error) {
       console.error('Logout error:', error)
     } finally {
-      this.removeToken()
+      this.removeTokens()
+    }
+  }
+
+  async logoutAll(): Promise<void> {
+    try {
+      await this.authenticatedRequest('/api/v1/auth/logout-all', {
+        method: 'POST',
+      })
+    } catch (error) {
+      console.error('Logout all error:', error)
+    } finally {
+      this.removeTokens()
+    }
+  }
+
+  async refreshAccessToken(): Promise<boolean> {
+    if (!this.refreshToken) {
+      return false
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/v1/auth/refresh`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ refresh_token: this.refreshToken }),
+      })
+
+      if (!response.ok) {
+        this.removeTokens()
+        return false
+      }
+
+      const data = await response.json()
+      this.setTokens(data.access_token, data.refresh_token)
+      return true
+    } catch (error) {
+      console.error('Token refresh error:', error)
+      this.removeTokens()
+      return false
     }
   }
 
@@ -135,47 +188,69 @@ class AuthService {
   }
 
   private async authenticatedRequest(endpoint: string, options: RequestInit = {}): Promise<Response> {
-    if (!this.token) {
+    if (!this.accessToken) {
       throw new Error('No authentication token available')
     }
 
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    let response = await fetch(`${API_BASE_URL}${endpoint}`, {
       ...options,
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${this.token}`,
+        'Authorization': `Bearer ${this.accessToken}`,
         ...options.headers,
       },
     })
 
+    // If token expired, try to refresh
     if (response.status === 401) {
-      this.removeToken()
-      throw new Error('Authentication expired')
+      const refreshed = await this.refreshAccessToken()
+      if (refreshed) {
+        // Retry request with new token
+        response = await fetch(`${API_BASE_URL}${endpoint}`, {
+          ...options,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${this.accessToken}`,
+            ...options.headers,
+          },
+        })
+      } else {
+        this.removeTokens()
+        throw new Error('Authentication expired')
+      }
     }
 
     return response
   }
 
-  setToken(token: string): void {
-    this.token = token
+  setTokens(accessToken: string, refreshToken: string): void {
+    this.accessToken = accessToken
+    this.refreshToken = refreshToken
     if (typeof window !== 'undefined') {
-      localStorage.setItem('auth_token', token)
+      localStorage.setItem('access_token', accessToken)
+      localStorage.setItem('refresh_token', refreshToken)
     }
   }
 
-  removeToken(): void {
-    this.token = null
+  removeTokens(): void {
+    this.accessToken = null
+    this.refreshToken = null
     if (typeof window !== 'undefined') {
-      localStorage.removeItem('auth_token')
+      localStorage.removeItem('access_token')
+      localStorage.removeItem('refresh_token')
     }
   }
 
-  getToken(): string | null {
-    return this.token
+  getAccessToken(): string | null {
+    return this.accessToken
+  }
+
+  getRefreshToken(): string | null {
+    return this.refreshToken
   }
 
   isAuthenticated(): boolean {
-    return !!this.token
+    return !!this.accessToken
   }
 
   hasPermission(resource: string, action: string, user?: User): boolean {

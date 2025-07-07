@@ -47,6 +47,7 @@ func ConnectDB() {
 		&models.Permission{},
 		&models.UserRole{},
 		&models.RolePermission{},
+		&models.RefreshToken{},
 	)
 
 	if err != nil {

@@ -3,20 +3,12 @@ package middleware
 import (
 	"backend/config"
 	"backend/models"
+	"backend/utils"
 	"net/http"
-	"os"
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v5"
 )
-
-type Claims struct {
-	UserID   uint   `json:"user_id"`
-	Username string `json:"username"`
-	Email    string `json:"email"`
-	jwt.RegisteredClaims
-}
 
 // AuthMiddleware validates JWT tokens
 func AuthMiddleware() gin.HandlerFunc {
@@ -28,12 +20,9 @@ func AuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		claims := &Claims{}
-		token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
-			return []byte(getJWTSecret()), nil
-		})
-
-		if err != nil || !token.Valid {
+		// Validate token using utils
+		claims, err := utils.ValidateAccessToken(tokenString)
+		if err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
 			c.Abort()
 			return
@@ -135,14 +124,6 @@ func getTokenFromRequest(c *gin.Context) string {
 
 	// Check query parameter
 	return c.Query("token")
-}
-
-func getJWTSecret() string {
-	secret := os.Getenv("JWT_SECRET")
-	if secret == "" {
-		return "your-default-secret-key-change-in-production"
-	}
-	return secret
 }
 
 func hasPermission(user models.User, resource, action string) bool {

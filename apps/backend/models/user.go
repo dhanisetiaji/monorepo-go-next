@@ -33,17 +33,18 @@ type Permission struct {
 
 // User represents a user in the system
 type User struct {
-	ID        uint           `json:"id" gorm:"primaryKey"`
-	Username  string         `json:"username" gorm:"unique;not null"`
-	Email     string         `json:"email" gorm:"unique;not null"`
-	Password  string         `json:"-" gorm:"not null"` // Hidden from JSON
-	FirstName string         `json:"first_name"`
-	LastName  string         `json:"last_name"`
-	IsActive  bool           `json:"is_active" gorm:"default:true"`
-	Roles     []Role         `json:"roles" gorm:"many2many:user_roles;"`
-	CreatedAt time.Time      `json:"created_at"`
-	UpdatedAt time.Time      `json:"updated_at"`
-	DeletedAt gorm.DeletedAt `json:"deleted_at" gorm:"index"`
+	ID            uint           `json:"id" gorm:"primaryKey"`
+	Username      string         `json:"username" gorm:"unique;not null"`
+	Email         string         `json:"email" gorm:"unique;not null"`
+	Password      string         `json:"-" gorm:"not null"` // Hidden from JSON
+	FirstName     string         `json:"first_name"`
+	LastName      string         `json:"last_name"`
+	IsActive      bool           `json:"is_active" gorm:"default:true"`
+	Roles         []Role         `json:"roles" gorm:"many2many:user_roles;"`
+	RefreshTokens []RefreshToken `json:"-" gorm:"foreignKey:UserID"`
+	CreatedAt     time.Time      `json:"created_at"`
+	UpdatedAt     time.Time      `json:"updated_at"`
+	DeletedAt     gorm.DeletedAt `json:"deleted_at" gorm:"index"`
 }
 
 // UserRole represents the many-to-many relationship between users and roles
@@ -59,6 +60,19 @@ type RolePermission struct {
 	RoleID       uint      `json:"role_id" gorm:"primaryKey"`
 	PermissionID uint      `json:"permission_id" gorm:"primaryKey"`
 	CreatedAt    time.Time `json:"created_at"`
+}
+
+// RefreshToken represents a refresh token for JWT authentication
+type RefreshToken struct {
+	ID        uint           `json:"id" gorm:"primaryKey"`
+	Token     string         `json:"-" gorm:"unique;not null;size:500"` // Hidden from JSON
+	UserID    uint           `json:"user_id" gorm:"not null"`
+	User      User           `json:"user" gorm:"foreignKey:UserID"`
+	ExpiresAt time.Time      `json:"expires_at" gorm:"not null"`
+	IsActive  bool           `json:"is_active" gorm:"default:true"`
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `json:"deleted_at" gorm:"index"`
 }
 
 // TableName methods for custom table names
@@ -80,4 +94,8 @@ func (UserRole) TableName() string {
 
 func (RolePermission) TableName() string {
 	return "role_permissions"
+}
+
+func (RefreshToken) TableName() string {
+	return "refresh_tokens"
 }

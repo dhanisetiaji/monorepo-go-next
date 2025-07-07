@@ -65,6 +65,7 @@ func main() {
 		// Authentication routes
 		public.POST("/auth/register", authController.Register)
 		public.POST("/auth/login", authController.Login)
+		public.POST("/auth/refresh", authController.RefreshToken)
 
 		// Public hello endpoint (for testing)
 		public.GET("/hello", func(c *gin.Context) {
@@ -82,6 +83,7 @@ func main() {
 		// Auth routes
 		protected.GET("/auth/me", authController.Me)
 		protected.POST("/auth/logout", authController.Logout)
+		protected.POST("/auth/logout-all", authController.LogoutAll)
 
 		// User management routes
 		users := protected.Group("/users")

@@ -3,12 +3,10 @@ package controllers
 import (
 	"backend/config"
 	"backend/models"
+	"backend/utils"
 	"net/http"
-	"os"
-	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -27,16 +25,15 @@ type RegisterRequest struct {
 	LastName  string `json:"last_name"`
 }
 
-type AuthResponse struct {
-	Token string      `json:"token"`
-	User  models.User `json:"user"`
+type RefreshTokenRequest struct {
+	RefreshToken string `json:"refresh_token" binding:"required"`
 }
 
-type Claims struct {
-	UserID   uint   `json:"user_id"`
-	Username string `json:"username"`
-	Email    string `json:"email"`
-	jwt.RegisteredClaims
+type AuthResponse struct {
+	AccessToken  string      `json:"access_token"`
+	RefreshToken string      `json:"refresh_token"`
+	ExpiresAt    int64       `json:"expires_at"`
+	User         models.User `json:"user"`
 }
 
 // Register creates a new user account
@@ -85,20 +82,22 @@ func (ac *AuthController) Register(c *gin.Context) {
 	// Load user with roles for response
 	config.DB.Preload("Roles.Permissions").First(&user, user.ID)
 
-	// Generate token
-	token, err := generateJWT(user)
+	// Generate token pair
+	tokenPair, err := utils.GenerateTokenPair(&user)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate tokens"})
 		return
 	}
 
 	c.JSON(http.StatusCreated, AuthResponse{
-		Token: token,
-		User:  user,
+		AccessToken:  tokenPair.AccessToken,
+		RefreshToken: tokenPair.RefreshToken,
+		ExpiresAt:    tokenPair.ExpiresAt,
+		User:         user,
 	})
 }
 
-// Login authenticates a user and returns a JWT token
+// Login authenticates a user and returns JWT tokens
 func (ac *AuthController) Login(c *gin.Context) {
 	var req LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -125,16 +124,18 @@ func (ac *AuthController) Login(c *gin.Context) {
 		return
 	}
 
-	// Generate token
-	token, err := generateJWT(user)
+	// Generate token pair
+	tokenPair, err := utils.GenerateTokenPair(&user)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate tokens"})
 		return
 	}
 
 	c.JSON(http.StatusOK, AuthResponse{
-		Token: token,
-		User:  user,
+		AccessToken:  tokenPair.AccessToken,
+		RefreshToken: tokenPair.RefreshToken,
+		ExpiresAt:    tokenPair.ExpiresAt,
+		User:         user,
 	})
 }
 
@@ -144,32 +145,57 @@ func (ac *AuthController) Me(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"user": user})
 }
 
-// Logout (for client-side token removal)
+// Logout revokes refresh tokens
 func (ac *AuthController) Logout(c *gin.Context) {
+	// Get refresh token from request body
+	var req RefreshTokenRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		// If no refresh token provided, just return success (client-side logout)
+		c.JSON(http.StatusOK, gin.H{"message": "Logged out successfully"})
+		return
+	}
+
+	// Revoke the refresh token
+	utils.RevokeRefreshToken(req.RefreshToken)
+
 	c.JSON(http.StatusOK, gin.H{"message": "Logged out successfully"})
 }
 
-// Helper function to generate JWT token
-func generateJWT(user models.User) (string, error) {
-	expirationTime := time.Now().Add(24 * time.Hour)
-	claims := &Claims{
-		UserID:   user.ID,
-		Username: user.Username,
-		Email:    user.Email,
-		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(expirationTime),
-			IssuedAt:  jwt.NewNumericDate(time.Now()),
-		},
+// RefreshToken generates new access token using refresh token
+func (ac *AuthController) RefreshToken(c *gin.Context) {
+	var req RefreshTokenRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
 	}
 
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString([]byte(getJWTSecret()))
+	// Generate new token pair
+	tokenPair, err := utils.RefreshAccessToken(req.RefreshToken)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid or expired refresh token"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"access_token":  tokenPair.AccessToken,
+		"refresh_token": tokenPair.RefreshToken,
+		"expires_at":    tokenPair.ExpiresAt,
+	})
 }
 
-func getJWTSecret() string {
-	secret := os.Getenv("JWT_SECRET")
-	if secret == "" {
-		return "your-default-secret-key-change-in-production"
+// LogoutAll revokes all refresh tokens for current user
+func (ac *AuthController) LogoutAll(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
 	}
-	return secret
+
+	// Revoke all refresh tokens for this user
+	if err := utils.RevokeAllUserRefreshTokens(userID.(uint)); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to logout from all devices"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Logged out from all devices successfully"})
 }

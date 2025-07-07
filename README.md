@@ -46,14 +46,17 @@ monorepo/
 
 ### Database
 - **PostgreSQL 15** - Production database
-- **Auto Migration** - GORM auto migration
+- **Auto Migration** - GORM auto migration with refresh tokens table
 - **Multi-Role System** - Dynamic role-based permissions
 
 ### Authentication & Authorization
-- **JWT Tokens** - Stateless authentication
+- **JWT Tokens** - Dual token system (Access + Refresh)
+  - **Access Token** - Short-lived (15 minutes) for API requests
+  - **Refresh Token** - Long-lived (7 days) for token renewal
 - **Role-Based Access Control (RBAC)** - Dynamic permissions
 - **Multi-Role Support** - Users can have multiple roles
 - **Permission System** - Resource-action based permissions
+- **Auto Token Refresh** - Frontend automatically refreshes expired tokens
 
 ### Development Tools
 - **Turborepo** - Monorepo build system
@@ -158,7 +161,9 @@ cd apps/web && npm run dev
 
 ### Protected Endpoints (Auth Required)
 - `GET /api/v1/auth/me` - Current user info
-- `POST /api/v1/auth/logout` - Logout
+- `POST /api/v1/auth/logout` - Logout (revoke refresh token)
+- `POST /api/v1/auth/logout-all` - Logout from all devices
+- `POST /api/v1/auth/refresh` - Refresh access token
 
 ### User Management (Requires Permissions)
 - `GET /api/v1/users` - Get all users (requires users.read)
@@ -213,6 +218,10 @@ cd apps/web && npm run dev
 ✅ **Next.js Frontend** - Modern React with App Router  
 ✅ **Tailwind CSS** - Utility-first styling  
 ✅ **TypeScript** - Type safety across the frontend  
+✅ **Dual JWT Authentication** - Access + Refresh token system  
+✅ **Auto Token Refresh** - Frontend handles token renewal automatically  
+✅ **Auto Migration** - GORM auto migration with refresh tokens table  
+✅ **Multi-role System** - Dynamic role-based permissions  
 ✅ **CORS Configuration** - Proper cross-origin setup  
 ✅ **Development Tools** - ESLint, Prettier, and more  
 ✅ **Hot Reload** - Both frontend and backend support hot reload  
@@ -238,6 +247,14 @@ npm start
 ### Backend
 - `PORT` - Server port (default: 8080)
 - `GIN_MODE` - Gin mode (debug/release)
+- `DB_HOST` - PostgreSQL host
+- `DB_PORT` - PostgreSQL port  
+- `DB_USER` - PostgreSQL username
+- `DB_PASSWORD` - PostgreSQL password
+- `DB_NAME` - PostgreSQL database name
+- `JWT_SECRET` - JWT signing secret
+- `JWT_ACCESS_EXPIRY` - Access token expiry (default: 15m)
+- `JWT_REFRESH_EXPIRY` - Refresh token expiry (default: 7d)
 
 ### Frontend
 - `NEXT_PUBLIC_API_URL` - Backend API URL
@@ -294,6 +311,43 @@ Current project uses Turbo v1.13.4 with `pipeline` configuration.
 3. Make your changes
 4. Run tests and linting
 5. Submit a pull request
+
+## Refresh Token Implementation
+
+### Backend Features
+- **Dual Token System**: Short-lived access tokens (15m) + long-lived refresh tokens (7d)
+- **Database Storage**: Refresh tokens stored in `refresh_tokens` table with expiry tracking
+- **Auto-cleanup**: Expired tokens automatically cleaned from database
+- **Token Revocation**: Support for single logout and logout from all devices
+- **Security**: Refresh tokens are cryptographically secure random strings
+
+### Frontend Features
+- **Auto Refresh**: Automatically refreshes expired access tokens
+- **Transparent Handling**: Token refresh happens behind the scenes
+- **Secure Storage**: Tokens stored in localStorage with proper cleanup
+- **Error Handling**: Graceful fallback when refresh fails
+
+### API Endpoints
+- `POST /api/v1/auth/refresh` - Refresh access token using refresh token
+- `POST /api/v1/auth/logout` - Logout and revoke specific refresh token
+- `POST /api/v1/auth/logout-all` - Logout from all devices (revoke all user's refresh tokens)
+
+### Usage Example
+```typescript
+// Login returns both tokens
+const response = await authService.login({ username, password })
+// { access_token, refresh_token, expires_at, user }
+
+// API calls automatically handle token refresh
+const user = await authService.getCurrentUser()
+// If access token expired, it's automatically refreshed
+
+// Logout revokes refresh token
+await authService.logout()
+
+// Logout from all devices
+await authService.logoutAll()
+```
 
 ## License
 
