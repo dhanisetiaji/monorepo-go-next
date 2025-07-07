@@ -1,6 +1,6 @@
-# Monorepo Project
+# Boilerplate Monorepo Project
 
-A modern monorepo setup with Go backend (JWT Auth + PostgreSQL) and Next.js frontend using Turborepo for efficient development and deployment.
+A modern boilerplate monorepo setup with Go backend (JWT Auth + PostgreSQL) and Next.js frontend using Turborepo for efficient development and deployment.
 
 ## Project Structure
 
