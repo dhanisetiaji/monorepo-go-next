@@ -7,31 +7,32 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 )
 
 type UserController struct{}
 
 type CreateUserRequest struct {
-	Username  string `json:"username" binding:"required"`
-	Email     string `json:"email" binding:"required,email"`
-	Password  string `json:"password" binding:"required,min=6"`
-	FirstName string `json:"first_name"`
-	LastName  string `json:"last_name"`
-	RoleIDs   []uint `json:"role_ids"`
+	Username  string      `json:"username" binding:"required"`
+	Email     string      `json:"email" binding:"required,email"`
+	Password  string      `json:"password" binding:"required,min=6"`
+	FirstName string      `json:"first_name"`
+	LastName  string      `json:"last_name"`
+	RoleIDs   []uuid.UUID `json:"role_ids"`
 }
 
 type UpdateUserRequest struct {
-	Username  string `json:"username"`
-	Email     string `json:"email"`
-	FirstName string `json:"first_name"`
-	LastName  string `json:"last_name"`
-	IsActive  *bool  `json:"is_active"`
-	RoleIDs   []uint `json:"role_ids"`
+	Username  string      `json:"username"`
+	Email     string      `json:"email"`
+	FirstName string      `json:"first_name"`
+	LastName  string      `json:"last_name"`
+	IsActive  *bool       `json:"is_active"`
+	RoleIDs   []uuid.UUID `json:"role_ids"`
 }
 
 type AssignRoleRequest struct {
-	RoleIDs []uint `json:"role_ids" binding:"required"`
+	RoleIDs []uuid.UUID `json:"role_ids" binding:"required"`
 }
 
 // GetUsers returns list of users
@@ -75,14 +76,15 @@ func (uc *UserController) GetUsers(c *gin.Context) {
 
 // GetUser returns a specific user
 func (uc *UserController) GetUser(c *gin.Context) {
-	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	idStr := c.Param("id")
+	id, err := uuid.Parse(idStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
 		return
 	}
 
 	var user models.User
-	if err := config.DB.Preload("Roles.Permissions").First(&user, uint(id)).Error; err != nil {
+	if err := config.DB.Preload("Roles.Permissions").Where("id = ?", id).First(&user).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
 	}
@@ -142,14 +144,15 @@ func (uc *UserController) CreateUser(c *gin.Context) {
 
 // UpdateUser updates a user
 func (uc *UserController) UpdateUser(c *gin.Context) {
-	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	idStr := c.Param("id")
+	id, err := uuid.Parse(idStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
 		return
 	}
 
 	var user models.User
-	if err := config.DB.First(&user, uint(id)).Error; err != nil {
+	if err := config.DB.Where("id = ?", id).First(&user).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
 	}
@@ -190,28 +193,30 @@ func (uc *UserController) UpdateUser(c *gin.Context) {
 	}
 
 	// Load user with roles for response
-	config.DB.Preload("Roles.Permissions").First(&user, user.ID)
+	config.DB.Preload("Roles.Permissions").Where("id = ?", user.ID).First(&user)
 
 	c.JSON(http.StatusOK, gin.H{"user": user})
 }
 
 // DeleteUser deletes a user
 func (uc *UserController) DeleteUser(c *gin.Context) {
-	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	idStr := c.Param("id")
+	id, err := uuid.Parse(idStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
 		return
 	}
 
 	var user models.User
-	if err := config.DB.First(&user, uint(id)).Error; err != nil {
+	if err := config.DB.Where("id = ?", id).First(&user).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
 	}
 
 	// Check if trying to delete self
-	currentUserID, _ := c.Get("user_id")
-	if currentUserID == user.ID {
+	currentUser, _ := c.Get("user")
+	currentUserObj := currentUser.(models.User)
+	if currentUserObj.ID == user.ID {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Cannot delete your own account"})
 		return
 	}
@@ -226,14 +231,15 @@ func (uc *UserController) DeleteUser(c *gin.Context) {
 
 // AssignRoles assigns roles to a user
 func (uc *UserController) AssignRoles(c *gin.Context) {
-	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	idStr := c.Param("id")
+	id, err := uuid.Parse(idStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
 		return
 	}
 
 	var user models.User
-	if err := config.DB.First(&user, uint(id)).Error; err != nil {
+	if err := config.DB.Where("id = ?", id).First(&user).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
 	}

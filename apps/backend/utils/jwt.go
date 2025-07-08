@@ -10,12 +10,13 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 )
 
 type Claims struct {
-	UserID   uint   `json:"user_id"`
-	Username string `json:"username"`
-	Email    string `json:"email"`
+	UserID   uuid.UUID `json:"user_id"`
+	Username string    `json:"username"`
+	Email    string    `json:"email"`
 	jwt.RegisteredClaims
 }
 
@@ -71,7 +72,7 @@ func GenerateAccessToken(user *models.User) (string, time.Time, error) {
 }
 
 // GenerateRefreshToken creates a long-lived refresh token and stores it in database
-func GenerateRefreshToken(userID uint) (string, error) {
+func GenerateRefreshToken(userID uuid.UUID) (string, error) {
 	// Generate random token
 	bytes := make([]byte, 32)
 	if _, err := rand.Read(bytes); err != nil {
@@ -161,7 +162,7 @@ func RevokeRefreshToken(tokenString string) error {
 }
 
 // RevokeAllUserRefreshTokens marks all user's refresh tokens as inactive
-func RevokeAllUserRefreshTokens(userID uint) error {
+func RevokeAllUserRefreshTokens(userID uuid.UUID) error {
 	return config.DB.Model(&models.RefreshToken{}).
 		Where("user_id = ?", userID).
 		Update("is_active", false).Error

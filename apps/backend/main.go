@@ -39,17 +39,21 @@ func main() {
 
 	r := gin.Default()
 
+	// Add security middleware to all routes
+	r.Use(middleware.SecurityMiddleware())
+
 	// Configure CORS
 	corsConfig := cors.DefaultConfig()
 	corsConfig.AllowOrigins = []string{"http://localhost:3000"} // Next.js dev server
 	corsConfig.AllowMethods = []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}
-	corsConfig.AllowHeaders = []string{"Origin", "Content-Type", "Accept", "Authorization"}
+	corsConfig.AllowHeaders = []string{"Origin", "Content-Type", "Accept", "Authorization", "X-CSRF-Token"}
 	r.Use(cors.New(corsConfig))
 
 	// Initialize controllers
 	authController := &controllers.AuthController{}
 	userController := &controllers.UserController{}
 	roleController := &controllers.RoleController{}
+	permissionController := &controllers.PermissionController{}
 
 	// Health check endpoint
 	r.GET("/health", func(c *gin.Context) {
@@ -108,7 +112,14 @@ func main() {
 		}
 
 		// Permission routes
-		protected.GET("/permissions", middleware.RequirePermission("permissions", "read"), roleController.GetPermissions)
+		permissions := protected.Group("/permissions")
+		{
+			permissions.GET("", middleware.RequirePermission("permissions", "read"), permissionController.GetPermissions)
+			permissions.GET("/:id", middleware.RequirePermission("permissions", "read"), permissionController.GetPermission)
+			permissions.POST("", middleware.RequirePermission("permissions", "write"), permissionController.CreatePermission)
+			permissions.PUT("/:id", middleware.RequirePermission("permissions", "write"), permissionController.UpdatePermission)
+			permissions.DELETE("/:id", middleware.RequirePermission("permissions", "delete"), permissionController.DeletePermission)
+		}
 
 		// Legacy routes for backward compatibility
 		protected.GET("/users-legacy", func(c *gin.Context) {

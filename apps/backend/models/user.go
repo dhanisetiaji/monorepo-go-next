@@ -3,12 +3,13 @@ package models
 import (
 	"time"
 
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
 // Role represents a role in the system
 type Role struct {
-	ID          uint           `json:"id" gorm:"primaryKey"`
+	ID          uuid.UUID      `json:"id" gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
 	Name        string         `json:"name" gorm:"unique;not null"`
 	Description string         `json:"description"`
 	Permissions []Permission   `json:"permissions" gorm:"many2many:role_permissions;"`
@@ -20,7 +21,7 @@ type Role struct {
 
 // Permission represents a permission in the system
 type Permission struct {
-	ID          uint           `json:"id" gorm:"primaryKey"`
+	ID          uuid.UUID      `json:"id" gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
 	Name        string         `json:"name" gorm:"unique;not null"`
 	Description string         `json:"description"`
 	Resource    string         `json:"resource" gorm:"not null"`
@@ -33,7 +34,7 @@ type Permission struct {
 
 // User represents a user in the system
 type User struct {
-	ID            uint           `json:"id" gorm:"primaryKey"`
+	ID            uuid.UUID      `json:"id" gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
 	Username      string         `json:"username" gorm:"unique;not null"`
 	Email         string         `json:"email" gorm:"unique;not null"`
 	Password      string         `json:"-" gorm:"not null"` // Hidden from JSON
@@ -49,24 +50,24 @@ type User struct {
 
 // UserRole represents the many-to-many relationship between users and roles
 type UserRole struct {
-	UserID     uint      `json:"user_id" gorm:"primaryKey"`
-	RoleID     uint      `json:"role_id" gorm:"primaryKey"`
-	AssignedBy uint      `json:"assigned_by"`
+	UserID     uuid.UUID `json:"user_id" gorm:"type:uuid;primaryKey"`
+	RoleID     uuid.UUID `json:"role_id" gorm:"type:uuid;primaryKey"`
+	AssignedBy uuid.UUID `json:"assigned_by" gorm:"type:uuid"`
 	CreatedAt  time.Time `json:"created_at"`
 }
 
 // RolePermission represents the many-to-many relationship between roles and permissions
 type RolePermission struct {
-	RoleID       uint      `json:"role_id" gorm:"primaryKey"`
-	PermissionID uint      `json:"permission_id" gorm:"primaryKey"`
+	RoleID       uuid.UUID `json:"role_id" gorm:"type:uuid;primaryKey"`
+	PermissionID uuid.UUID `json:"permission_id" gorm:"type:uuid;primaryKey"`
 	CreatedAt    time.Time `json:"created_at"`
 }
 
 // RefreshToken represents a refresh token for JWT authentication
 type RefreshToken struct {
-	ID        uint           `json:"id" gorm:"primaryKey"`
+	ID        uuid.UUID      `json:"id" gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
 	Token     string         `json:"-" gorm:"unique;not null;size:500"` // Hidden from JSON
-	UserID    uint           `json:"user_id" gorm:"not null"`
+	UserID    uuid.UUID      `json:"user_id" gorm:"type:uuid;not null"`
 	User      User           `json:"user" gorm:"foreignKey:UserID"`
 	ExpiresAt time.Time      `json:"expires_at" gorm:"not null"`
 	IsActive  bool           `json:"is_active" gorm:"default:true"`
@@ -98,4 +99,33 @@ func (RolePermission) TableName() string {
 
 func (RefreshToken) TableName() string {
 	return "refresh_tokens"
+}
+
+// GORM hooks for UUID generation
+func (u *User) BeforeCreate(tx *gorm.DB) error {
+	if u.ID == uuid.Nil {
+		u.ID = uuid.New()
+	}
+	return nil
+}
+
+func (r *Role) BeforeCreate(tx *gorm.DB) error {
+	if r.ID == uuid.Nil {
+		r.ID = uuid.New()
+	}
+	return nil
+}
+
+func (p *Permission) BeforeCreate(tx *gorm.DB) error {
+	if p.ID == uuid.Nil {
+		p.ID = uuid.New()
+	}
+	return nil
+}
+
+func (rt *RefreshToken) BeforeCreate(tx *gorm.DB) error {
+	if rt.ID == uuid.Nil {
+		rt.ID = uuid.New()
+	}
+	return nil
 }

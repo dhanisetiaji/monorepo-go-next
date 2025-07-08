@@ -1,6 +1,20 @@
+'use client'
+
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { authService } from '../lib/auth'
 import ApiDemo from '../components/ApiDemo'
 
 export default function Home() {
+  const router = useRouter()
+
+  useEffect(() => {
+    // Redirect authenticated users to dashboard
+    if (authService.isAuthenticated()) {
+      router.push('/dashboard')
+    }
+  }, [router])
+
   return (
     <main className="min-h-screen bg-gray-50">
       <div className="container mx-auto px-4 py-12">
@@ -11,6 +25,21 @@ export default function Home() {
           <p className="text-xl text-gray-600 mb-8">
             A modern monorepo with Go backend and Next.js frontend
           </p>
+          
+          <div className="space-x-4">
+            <a
+              href="/login"
+              className="inline-block bg-blue-600 text-white px-6 py-3 rounded-md font-medium hover:bg-blue-700 transition-colors"
+            >
+              Sign In
+            </a>
+            <a
+              href="/register"
+              className="inline-block bg-gray-200 text-gray-900 px-6 py-3 rounded-md font-medium hover:bg-gray-300 transition-colors"
+            >
+              Sign Up
+            </a>
+          </div>
         </div>
         
         <div className="grid md:grid-cols-3 gap-8 mb-12">

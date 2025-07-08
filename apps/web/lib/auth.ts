@@ -3,7 +3,7 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
 
 interface User {
-  id: number
+  id: string
   username: string
   email: string
   first_name: string
@@ -15,14 +15,15 @@ interface User {
 }
 
 interface Role {
-  id: number
+  id: string
   name: string
   description: string
   permissions: Permission[]
+  users?: User[]
 }
 
 interface Permission {
-  id: number
+  id: string
   name: string
   description: string
   resource: string
@@ -190,6 +191,100 @@ class AuthService {
 
   async getPermissions() {
     const response = await this.authenticatedRequest('/api/v1/permissions')
+    return response.json()
+  }
+
+  // User management methods
+  async updateUser(userId: string, userData: Partial<User>) {
+    const response = await this.authenticatedRequest(`/api/v1/users/${userId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(userData),
+    })
+    return response.json()
+  }
+
+  async deleteUser(userId: string) {
+    const response = await this.authenticatedRequest(`/api/v1/users/${userId}`, {
+      method: 'DELETE',
+    })
+    return response.json()
+  }
+
+  async assignRoles(userId: string, roleIds: string[]) {
+    const response = await this.authenticatedRequest(`/api/v1/users/${userId}/roles`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ role_ids: roleIds }),
+    })
+    return response.json()
+  }
+
+  // Role management methods
+  async createRole(roleData: { name: string; description: string; permissionIds: string[] }) {
+    const response = await this.authenticatedRequest('/api/v1/roles', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        name: roleData.name,
+        description: roleData.description,
+        permission_ids: roleData.permissionIds,
+      }),
+    })
+    return response.json()
+  }
+
+  async updateRole(roleId: string, roleData: Partial<Role>) {
+    const response = await this.authenticatedRequest(`/api/v1/roles/${roleId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(roleData),
+    })
+    return response.json()
+  }
+
+  async deleteRole(roleId: string) {
+    const response = await this.authenticatedRequest(`/api/v1/roles/${roleId}`, {
+      method: 'DELETE',
+    })
+    return response.json()
+  }
+
+  // Permission management methods
+  async createPermission(permissionData: { name: string; description: string; resource: string; action: string }) {
+    const response = await this.authenticatedRequest('/api/v1/permissions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(permissionData),
+    })
+    return response.json()
+  }
+
+  async updatePermission(permissionId: string, permissionData: Partial<Permission>) {
+    const response = await this.authenticatedRequest(`/api/v1/permissions/${permissionId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(permissionData),
+    })
+    return response.json()
+  }
+
+  async deletePermission(permissionId: string) {
+    const response = await this.authenticatedRequest(`/api/v1/permissions/${permissionId}`, {
+      method: 'DELETE',
+    })
     return response.json()
   }
 

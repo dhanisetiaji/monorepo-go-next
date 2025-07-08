@@ -30,7 +30,7 @@ func AuthMiddleware() gin.HandlerFunc {
 
 		// Get user from database
 		var user models.User
-		if err := config.DB.Preload("Roles.Permissions").First(&user, claims.UserID).Error; err != nil {
+		if err := config.DB.Preload("Roles.Permissions").Where("id = ?", claims.UserID).First(&user).Error; err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "User not found"})
 			c.Abort()
 			return

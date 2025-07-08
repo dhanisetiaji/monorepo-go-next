@@ -4,23 +4,23 @@ import (
 	"backend/config"
 	"backend/models"
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 type RoleController struct{}
 
 type CreateRoleRequest struct {
-	Name          string `json:"name" binding:"required"`
-	Description   string `json:"description"`
-	PermissionIDs []uint `json:"permission_ids"`
+	Name          string      `json:"name" binding:"required"`
+	Description   string      `json:"description"`
+	PermissionIDs []uuid.UUID `json:"permission_ids"`
 }
 
 type UpdateRoleRequest struct {
-	Name          string `json:"name"`
-	Description   string `json:"description"`
-	PermissionIDs []uint `json:"permission_ids"`
+	Name          string      `json:"name"`
+	Description   string      `json:"description"`
+	PermissionIDs []uuid.UUID `json:"permission_ids"`
 }
 
 // GetRoles returns list of roles
@@ -36,14 +36,15 @@ func (rc *RoleController) GetRoles(c *gin.Context) {
 
 // GetRole returns a specific role
 func (rc *RoleController) GetRole(c *gin.Context) {
-	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	idStr := c.Param("id")
+	id, err := uuid.Parse(idStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid role ID"})
 		return
 	}
 
 	var role models.Role
-	if err := config.DB.Preload("Permissions").Preload("Users").First(&role, uint(id)).Error; err != nil {
+	if err := config.DB.Preload("Permissions").Preload("Users").Where("id = ?", id).First(&role).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Role not found"})
 		return
 	}
@@ -92,14 +93,15 @@ func (rc *RoleController) CreateRole(c *gin.Context) {
 
 // UpdateRole updates a role
 func (rc *RoleController) UpdateRole(c *gin.Context) {
-	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	idStr := c.Param("id")
+	id, err := uuid.Parse(idStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid role ID"})
 		return
 	}
 
 	var role models.Role
-	if err := config.DB.First(&role, uint(id)).Error; err != nil {
+	if err := config.DB.Where("id = ?", id).First(&role).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Role not found"})
 		return
 	}
@@ -138,14 +140,15 @@ func (rc *RoleController) UpdateRole(c *gin.Context) {
 
 // DeleteRole deletes a role
 func (rc *RoleController) DeleteRole(c *gin.Context) {
-	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	idStr := c.Param("id")
+	id, err := uuid.Parse(idStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid role ID"})
 		return
 	}
 
 	var role models.Role
-	if err := config.DB.First(&role, uint(id)).Error; err != nil {
+	if err := config.DB.Where("id = ?", id).First(&role).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Role not found"})
 		return
 	}

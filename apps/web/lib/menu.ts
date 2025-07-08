@@ -30,6 +30,13 @@ export const menuConfig: Omit<MenuAccess, 'accessible'>[] = [
     permission: 'menu.dashboard'
   },
   {
+    name: 'admin-panel',
+    label: 'Admin Panel',
+    icon: 'Shield',
+    path: '/admin',
+    permission: 'menu.admin-panel'
+  },
+  {
     name: 'analytics',
     label: 'Analytics',
     icon: 'BarChart3',
@@ -100,9 +107,9 @@ export const menuConfig: Omit<MenuAccess, 'accessible'>[] = [
 export const roleAccessMap = {
   admin: {
     name: 'Administrator',
-    description: 'Full system access',
+    description: 'Full system access including admin panel',
     color: 'red',
-    menus: ['Dashboard', 'Analytics', 'Reports', 'Administration', 'Billing', 'Support', 'Settings']
+    menus: ['Dashboard', 'Analytics', 'Reports', 'Administration', 'Admin Panel', 'Billing', 'Support', 'Settings']
   },
   manager: {
     name: 'Manager', 

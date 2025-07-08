@@ -27,6 +27,13 @@ func GetUserMenuAccess(user *models.User) []MenuAccess {
 			Permission: "menu.dashboard",
 		},
 		{
+			Name:       "admin-panel",
+			Label:      "Admin Panel",
+			Icon:       "admin_panel_settings",
+			Path:       "/admin",
+			Permission: "menu.admin-panel",
+		},
+		{
 			Name:       "analytics",
 			Label:      "Analytics",
 			Icon:       "analytics",

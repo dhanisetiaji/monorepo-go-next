@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"backend/config"
+	"backend/middleware"
 	"backend/models"
 	"backend/utils"
 	"net/http"
@@ -80,7 +81,7 @@ func (ac *AuthController) Register(c *gin.Context) {
 	}
 
 	// Load user with roles for response
-	config.DB.Preload("Roles.Permissions").First(&user, user.ID)
+	config.DB.Preload("Roles.Permissions").Where("id = ?", user.ID).First(&user)
 
 	// Generate token pair
 	tokenPair, err := utils.GenerateTokenPair(&user)
@@ -108,18 +109,22 @@ func (ac *AuthController) Login(c *gin.Context) {
 	// Find user
 	var user models.User
 	if err := config.DB.Preload("Roles.Permissions").Where("username = ? OR email = ?", req.Username, req.Username).First(&user).Error; err != nil {
+		// Log failed login attempt
+		middleware.LogFailedLogin(c.ClientIP(), req.Username, c.Request.UserAgent())
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
 		return
 	}
 
 	// Check if user is active
 	if !user.IsActive {
+		middleware.LogFailedLogin(c.ClientIP(), req.Username, c.Request.UserAgent())
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Account is disabled"})
 		return
 	}
 
 	// Verify password
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password)); err != nil {
+		middleware.LogFailedLogin(c.ClientIP(), req.Username, c.Request.UserAgent())
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
 		return
 	}
@@ -203,14 +208,16 @@ func (ac *AuthController) RefreshToken(c *gin.Context) {
 
 // LogoutAll revokes all refresh tokens for current user
 func (ac *AuthController) LogoutAll(c *gin.Context) {
-	userID, exists := c.Get("user_id")
+	userInterface, exists := c.Get("user")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
 		return
 	}
 
+	user := userInterface.(models.User)
+
 	// Revoke all refresh tokens for this user
-	if err := utils.RevokeAllUserRefreshTokens(userID.(uint)); err != nil {
+	if err := utils.RevokeAllUserRefreshTokens(user.ID); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to logout from all devices"})
 		return
 	}
